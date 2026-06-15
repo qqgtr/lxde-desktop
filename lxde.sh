@@ -201,22 +201,21 @@ fi
 echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
 # API 请求不使用代理（gh-proxy 不支持 api.github.com）
 NC_API_URL="https://api.github.com/repos/binaricat/Netcatty/releases/latest"
+# 匹配 linux-amd64.deb 或 amd64.deb
 NC_RAW_URL=$(curl -s "$NC_API_URL" | grep -E "browser_download_url.*linux-amd64\.deb|browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$NC_RAW_URL" ]; then
-    echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    # Fallback 使用代理加速 - 使用正确的文件名格式
-    NC_URL="${GH_PROXY}/https://github.com/binaricat/Netcatty/releases/latest/download/Netcatty_linux-amd64.deb"
+    echo -e "${YELLOW}API 解析失败，无法获取 Netcatty 下载链接...${PLAIN}"
+    echo -e "${RED}错误: Netcatty 下载失败！${PLAIN}"
 else
     NC_URL="${GH_PROXY}/${NC_RAW_URL}"
-fi
-
-wget -O /tmp/netcatty.deb "$NC_URL"
-if [ -f /tmp/netcatty.deb ] && [ -s /tmp/netcatty.deb ]; then
-    dpkg -i /tmp/netcatty.deb || apt-get install -f -y
-    rm -f /tmp/netcatty.deb
-else
-    echo -e "${RED}错误: Netcatty 下载失败！${PLAIN}"
+    wget -O /tmp/netcatty.deb "$NC_URL"
+    if [ -f /tmp/netcatty.deb ] && [ -s /tmp/netcatty.deb ]; then
+        dpkg -i /tmp/netcatty.deb || apt-get install -f -y
+        rm -f /tmp/netcatty.deb
+    else
+        echo -e "${RED}错误: Netcatty 下载失败！${PLAIN}"
+    fi
 fi
 
 # 7. 【项目二】下载并安装 OxideTerm SSH 客户端
@@ -227,19 +226,17 @@ OX_API_URL="https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/lat
 OX_RAW_URL=$(curl -s "$OX_API_URL" | grep -E "browser_download_url.*linux_x64\.deb|browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$OX_RAW_URL" ]; then
-    echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    # Fallback 使用代理加速 - 使用正确的文件名格式
-    OX_URL="${GH_PROXY}/https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/OxideTerm_linux_x64.deb"
+    echo -e "${YELLOW}API 解析失败，无法获取 OxideTerm 下载链接...${PLAIN}"
+    echo -e "${RED}错误: OxideTerm 下载失败！${PLAIN}"
 else
     OX_URL="${GH_PROXY}/${OX_RAW_URL}"
-fi
-
-wget -O /tmp/oxideterm.deb "$OX_URL"
-if [ -f /tmp/oxideterm.deb ] && [ -s /tmp/oxideterm.deb ]; then
-    dpkg -i /tmp/oxideterm.deb || apt-get install -f -y
-    rm -f /tmp/oxideterm.deb
-else
-    echo -e "${RED}错误: OxideTerm 下载失败！${PLAIN}"
+    wget -O /tmp/oxideterm.deb "$OX_URL"
+    if [ -f /tmp/oxideterm.deb ] && [ -s /tmp/oxideterm.deb ]; then
+        dpkg -i /tmp/oxideterm.deb || apt-get install -f -y
+        rm -f /tmp/oxideterm.deb
+    else
+        echo -e "${RED}错误: OxideTerm 下载失败！${PLAIN}"
+    fi
 fi
 
 # 8. 全自动安全部署快捷方式 (仅快捷方式，无任何自启动)
