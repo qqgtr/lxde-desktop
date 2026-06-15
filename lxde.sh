@@ -137,11 +137,11 @@ if [ -f /etc/xrdp/xrdp.ini ]; then
     # 使用 awk 精确修改 [globals] section 下的 port 和 bpp 配置，不影响其他 section
     awk -v port="$RDP_PORT" -v bpp="$BPP_VAL" '
         BEGIN { in_globals=0; port_found=0 }
-        /^\[globals\]/ { in_globals=1; print; next }
+        tolower($0) ~ /^\[globals\]/ { in_globals=1; print; next }
         /^\[/ && in_globals { in_globals=0 }
-        in_globals && /^port=/ { print "port="port; port_found=1; next }
-        in_globals && /^max_bpp=/ { print "max_bpp="bpp; next }
-        in_globals && /^xrdp\.bpp=/ { print "xrdp.bpp="bpp; next }
+        in_globals && /^[[:space:]]*port[[:space:]]*=/ { print "port="port; port_found=1; next }
+        in_globals && /^[[:space:]]*max_bpp[[:space:]]*=/ { print "max_bpp="bpp; next }
+        in_globals && /^[[:space:]]*xrdp\.bpp[[:space:]]*=/ { print "xrdp.bpp="bpp; next }
         { print }
         END {
             # 如果 [globals] 中没有 port=，在文件末尾添加（XRDP 会读取）
