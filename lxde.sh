@@ -252,31 +252,44 @@ copy_desktop_icon "netcatty"
 copy_desktop_icon "oxideterm"
 
 # 针对 Electron 核心的 Netcatty 在 Root 下的沙盒闪退 Bug 进行补修
-# 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件名
-for DESKTOP_FILE in $(find /root/桌面/ /etc/skel/桌面/ /usr/share/applications/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
-    if [ -f "$DESKTOP_FILE" ]; then
-        # 备份原文件
-        cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
-        
-        # 读取 Exec 行并添加 --no-sandbox 参数
-        # 支持多种格式：Exec=netcatty, Exec=/usr/bin/netcatty, Exec=netcatty %U 等
-        if grep -q "^Exec=.*netcatty" "$DESKTOP_FILE"; then
-            # 如果还没有 --no-sandbox，则添加
-            if ! grep -q "\-\-no-sandbox" "$DESKTOP_FILE"; then
-                sed -i -E 's|^(Exec=.*)$|\1 --no-sandbox|I' "$DESKTOP_FILE"
-                echo "已为 $DESKTOP_FILE 添加 --no-sandbox 参数"
-            fi
-        fi
+# 动态检测 Netcatty 实际安装路径
+NC_EXEC_PATH=""
+for nc_path in /usr/bin/netcatty /opt/Netcatty/netcatty /usr/local/bin/netcatty; do
+    if [ -f "$nc_path" ]; then
+        NC_EXEC_PATH="$nc_path"
+        break
     fi
 done
 
-# 同时创建命令行启动脚本，方便直接运行
-cat > /usr/local/bin/netcatty-root << 'EOF'
+# 如果找到可执行文件，则修复桌面文件
+if [ -n "$NC_EXEC_PATH" ]; then
+    # 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件名
+    for DESKTOP_FILE in $(find /usr/share/applications/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
+        if [ -f "$DESKTOP_FILE" ]; then
+            # 备份原文件
+            cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
+            
+            # 只修改包含 netcatty 的 Exec 行（不区分大小写），保留原始大小写
+            # 使用更精确的正则：匹配 Exec= 开头，且行中包含 netcatty（忽略大小写）
+            if grep -qi "^Exec=.*netcatty" "$DESKTOP_FILE"; then
+                # 如果还没有 --no-sandbox，则添加
+                if ! grep -q "\-\-no-sandbox" "$DESKTOP_FILE"; then
+                    # 使用 perl 进行更精确的替换，保留原始大小写
+                    perl -i -pe 's/^(Exec=.*)$/$1 --no-sandbox/i if /netcatty/i' "$DESKTOP_FILE"
+                    echo "已为 $DESKTOP_FILE 添加 --no-sandbox 参数"
+                fi
+            fi
+        fi
+    done
+    
+    # 同时创建命令行启动脚本，方便直接运行
+    cat > /usr/local/bin/netcatty-root << EOF
 #!/bin/bash
 # Netcatty root 用户启动包装器
-exec /usr/bin/netcatty --no-sandbox "$@"
+exec $NC_EXEC_PATH --no-sandbox "\$@"
 EOF
-chmod +x /usr/local/bin/netcatty-root 2>/dev/null
+    chmod +x /usr/local/bin/netcatty-root 2>/dev/null
+fi
 
 cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
 cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
