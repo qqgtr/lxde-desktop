@@ -263,8 +263,8 @@ done
 
 # 如果找到可执行文件，则修复桌面文件
 if [ -n "$NC_EXEC_PATH" ]; then
-    # 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件名
-    for DESKTOP_FILE in $(find /usr/share/applications/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
+    # 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件位置
+    for DESKTOP_FILE in $(find /usr/share/applications/ /root/桌面/ /etc/skel/桌面/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
         if [ -f "$DESKTOP_FILE" ]; then
             # 备份原文件
             cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
