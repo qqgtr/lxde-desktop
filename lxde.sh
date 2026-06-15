@@ -114,7 +114,7 @@ apt install -y xorg lxde-core xrdp fcitx5 fcitx5-pinyin lxterminal
 
 # 注入全局和 root 用户环境会话变量
 mkdir -p /etc/skel /root
-ENV_SESSIONS="#!/bin/sh\nexport LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nexec lxsession -s LXDE -e LXDE"
+ENV_SESSIONS="#!/bin/sh\nexport LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nexport GTK_IM_MODULE=fcitx\nexport QT_IM_MODULE=fcitx\nexport XMODIFIERS=@im=fcitx\nexport INPUT_METHOD=fcitx\nfcitx5 -d &\nexec lxsession -s LXDE -e LXDE"
 echo -e "$ENV_SESSIONS" > /etc/skel/.xsession
 echo -e "$ENV_SESSIONS" > /root/.xsession
 # 必须给 .xsession 添加可执行权限，否则 XRDP 无法启动桌面会话
