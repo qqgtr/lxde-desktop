@@ -255,10 +255,28 @@ copy_desktop_icon "oxideterm"
 # 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件名
 for DESKTOP_FILE in $(find /root/桌面/ /etc/skel/桌面/ /usr/share/applications/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
     if [ -f "$DESKTOP_FILE" ]; then
-        # 匹配所有 Exec= 行中包含 netcatty 的（不区分大小写），追加 --no-sandbox
-        sed -i -E 's|^(Exec=.*)netcatty(.*)$|\1netcatty --no-sandbox\2|Ig' "$DESKTOP_FILE" 2>/dev/null
+        # 备份原文件
+        cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
+        
+        # 读取 Exec 行并添加 --no-sandbox 参数
+        # 支持多种格式：Exec=netcatty, Exec=/usr/bin/netcatty, Exec=netcatty %U 等
+        if grep -q "^Exec=.*netcatty" "$DESKTOP_FILE"; then
+            # 如果还没有 --no-sandbox，则添加
+            if ! grep -q "\-\-no-sandbox" "$DESKTOP_FILE"; then
+                sed -i -E 's|^(Exec=.*)$|\1 --no-sandbox|I' "$DESKTOP_FILE"
+                echo "已为 $DESKTOP_FILE 添加 --no-sandbox 参数"
+            fi
+        fi
     fi
 done
+
+# 同时创建命令行启动脚本，方便直接运行
+cat > /usr/local/bin/netcatty-root << 'EOF'
+#!/bin/bash
+# Netcatty root 用户启动包装器
+exec /usr/bin/netcatty --no-sandbox "$@"
+EOF
+chmod +x /usr/local/bin/netcatty-root 2>/dev/null
 
 cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
 cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
