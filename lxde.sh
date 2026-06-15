@@ -47,7 +47,7 @@ if [ $COMPATIBLE -eq 0 ]; then
 fi
 
 echo -e "${BLUE}====================================================${PLAIN}"
-echo -e "${GREEN}    欢迎使用 LXDE 中文桌面智能交互安装脚本 (最终版)${PLAIN}"
+echo -e "${GREEN}    欢迎使用 LXDE 中文桌面智能交互安装脚本${PLAIN}"
 echo -e "${BLUE}====================================================${PLAIN}"
 echo -e "当前系统检测结果: ${YELLOW}${OS_NAME} ${VERSION_ID} (主版本: ${OS_MAJOR})${PLAIN}\n"
 
