@@ -363,6 +363,8 @@ sysctl -p 2>/dev/null
 
 # 10. 系统瘦身与垃圾清理
 echo -e "${BLUE}[10/11] 清理缓存文件释放系统体积...${PLAIN}"
+# 卸载 UXTerm（LXDE 附带的旧式终端，已有 lxterminal 替代）
+apt purge -y xterm 2>/dev/null
 apt autoremove -y && apt clean
 
 # 11. 配置全中文环境（放在最后执行，确保所有组件安装完成后再设置中文）
