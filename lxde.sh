@@ -117,6 +117,8 @@ mkdir -p /etc/skel /root
 ENV_SESSIONS="export LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nlxsession -s LXDE -e LXDE"
 echo -e "$ENV_SESSIONS" > /etc/skel/.xsession
 echo -e "$ENV_SESSIONS" > /root/.xsession
+# 必须给 .xsession 添加可执行权限，否则 XRDP 无法启动桌面会话
+chmod +x /etc/skel/.xsession /root/.xsession
 
 # 4. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[4/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
@@ -142,9 +144,47 @@ if [ -f /etc/xrdp/xrdp.ini ]; then
 fi
 
 if [ -f /etc/xrdp/sesman.ini ]; then
-    sed -i 's/DisconnectedSessionExpiryTime=.*/DisconnectedSessionExpiryTime=60/g' /etc/xrdp/sesman.ini
-    sed -i 's/IdleSessionExpiryTime=.*/IdleSessionExpiryTime=30/g' /etc/xrdp/sesman.ini
+    # 调大会话超时时间，避免刚连接就断开会话
+    sed -i 's/DisconnectedSessionExpiryTime=.*/DisconnectedSessionExpiryTime=300/g' /etc/xrdp/sesman.ini
+    sed -i 's/IdleSessionExpiryTime=.*/IdleSessionExpiryTime=600/g' /etc/xrdp/sesman.ini
 fi
+
+# 修改 startwm.sh 确保正确启动 LXDE 桌面
+if [ -f /etc/xrdp/startwm.sh ]; then
+    # 备份原始文件
+    cp /etc/xrdp/startwm.sh /etc/xrdp/startwm.sh.bak 2>/dev/null
+    
+    # 写入新的启动脚本，确保启动 LXDE
+    cat > /etc/xrdp/startwm.sh << 'STARTWM'
+#!/bin/sh
+# xrdp session startup script
+
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG LANGUAGE
+fi
+
+# 优先使用用户的 .xsession
+if [ -x "$HOME/.xsession" ]; then
+  exec "$HOME/.xsession"
+fi
+
+# 回退到系统默认 LXDE 会话
+exec startlxde
+STARTWM
+    chmod +x /etc/xrdp/startwm.sh
+fi
+
+# 配置 polkit 规则放行 XRDP 会话，避免认证弹窗阻塞桌面启动
+mkdir -p /etc/polkit-1/localauthority/50-local.d
+cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla << 'POLKIT'
+[Allow Colord all Users]
+Identity=unix-user:*
+Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+ResultAny=no
+ResultInactive=no
+ResultActive=yes
+POLKIT
 
 systemctl enable xrdp
 systemctl restart xrdp
