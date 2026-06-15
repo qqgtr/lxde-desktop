@@ -21,7 +21,7 @@
 - **XRDP 色深智能切换**：
   - 上传 ≤ 10Mbps → 强制 16-bit 高压缩色深（低带宽防卡顿模式）
   - 上传 > 10Mbps → 采用 32-bit 高清图形渲染（宽带充裕模式）
-- **内核 TCP 动态调优**：下载带宽 > 100Mbps 时自动扩展 TCP 接收/发送窗口
+- **内核 TCP 动态调优**：启用 SYN Cookie 与 TW 复用，提升网络稳定性
 
 ### 桌面环境
 - **LXDE 纯净桌面**：无 LightDM 显示管理器，通过 XRDP 直接启动 LXDE 会话
@@ -43,9 +43,9 @@
 - **Xarchiver**：多格式压缩解压工具（支持 7z/zip/tar/gz/bz2）
 
 ### 系统调优
-- **内核网络优化**：TCP SYN Cookie、TW 复用、连接超时缩短等
+- **内核网络优化**：TCP SYN Cookie、TW 复用
 - **PCManFM 右键菜单增强**：一键解压归档文件
-- **系统自动瘦身**：部署完成后清理缓存和冗余包
+- **系统自动瘦身**：部署完成后清理缓存和冗余包（XTerm、截图工具等）
 
 ## 使用方法
 
@@ -77,7 +77,7 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 
 | 步骤 | 说明 |
 |------|------|
-| 1/11 | 更新系统源并安装基础依赖（curl、wget、vim、压缩工具等） |
+| 1/11 | 更新系统源并安装基础依赖（curl、wget、压缩工具、FeatherPad等） |
 | 2/11 | 安装 LXDE 桌面核心 + XRDP + Fcitx5 拼音输入法 + LXTerminal |
 | 3/11 | 根据上传带宽智能调优 XRDP 色深与压缩策略，设置自定义端口 |
 | 4/11 | 安装 Firefox ESR 浏览器（失败时自动回退到 firefox / chromium） |
