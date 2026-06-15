@@ -53,25 +53,7 @@ echo -e "当前系统检测结果: ${YELLOW}${OS_NAME} ${VERSION_ID} (主版本:
 
 # 交互获取用户网络带宽
 echo -e "${BLUE}[网络参数交互采集]${PLAIN}"
-read -p "1. 请输入当前机器的 [外网上传带宽] (单位 Mbps, 纯数字, 默认 5): " NET_UP
-NET_UP=${NET_UP:-5}
-
-# 验证上传带宽是否为数字
-if ! [[ "$NET_UP" =~ ^[0-9]+$ ]]; then
-    echo -e "${RED}错误: 上传带宽必须是纯数字，已使用默认值 5 Mbps${PLAIN}"
-    NET_UP=5
-fi
-
-read -p "2. 请输入当前机器的 [外网下载带宽] (单位 Mbps, 纯数字, 默认 200): " NET_DOWN
-NET_DOWN=${NET_DOWN:-200}
-
-# 验证下载带宽是否为数字
-if ! [[ "$NET_DOWN" =~ ^[0-9]+$ ]]; then
-    echo -e "${RED}错误: 下载带宽必须是纯数字，已使用默认值 200 Mbps${PLAIN}"
-    NET_DOWN=200
-fi
-
-read -p "3. 请输入远程桌面端口 (纯数字, 默认 3389): " RDP_PORT
+read -p "1. 请输入远程桌面端口 (纯数字, 默认 3389): " RDP_PORT
 RDP_PORT=${RDP_PORT:-3389}
 
 # 验证端口是否为有效数字
@@ -80,7 +62,25 @@ if ! [[ "$RDP_PORT" =~ ^[0-9]+$ ]] || [ "$RDP_PORT" -lt 1 ] || [ "$RDP_PORT" -gt
     RDP_PORT=3389
 fi
 
-echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps / 端口: ${RDP_PORT}。开始执行部署...${PLAIN}\n"
+read -p "2. 请输入当前机器的 [外网上传带宽] (单位 Mbps, 纯数字, 默认 5): " NET_UP
+NET_UP=${NET_UP:-5}
+
+# 验证上传带宽是否为数字
+if ! [[ "$NET_UP" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}错误: 上传带宽必须是纯数字，已使用默认值 5 Mbps${PLAIN}"
+    NET_UP=5
+fi
+
+read -p "3. 请输入当前机器的 [外网下载带宽] (单位 Mbps, 纯数字, 默认 200): " NET_DOWN
+NET_DOWN=${NET_DOWN:-200}
+
+# 验证下载带宽是否为数字
+if ! [[ "$NET_DOWN" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}错误: 下载带宽必须是纯数字，已使用默认值 200 Mbps${PLAIN}"
+    NET_DOWN=200
+fi
+
+echo -e "\n${GREEN}网络配置已锁定 -> 端口: ${RDP_PORT} / 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps。开始执行部署...${PLAIN}\n"
 
 # 1. 更新系统源并安装基础及多系统兼容依赖包
 echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAIN}"
