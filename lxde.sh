@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-# 脚本名称: 多系统兼容纯净 LXDE 中文桌面 + 智能带宽交互调优一键脚本
-# 支持系统: Debian 11+, Ubuntu 22.04+ (以 root 权限运行)
+# 脚本名称: 多系统兼容纯净 LXDE 中文桌面 + 双远程工具智能带宽交互调优一键脚本
+# 支持系统: Debian 11+ , Ubuntu 22.04+  [以 Root 权限运行]
 # ==============================================================================
 
 # 颜色定义
@@ -21,20 +21,35 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-# 检测系统发行版与版本
+# 检测系统发行版与主版本号
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_NAME=$ID
-    OS_VER=$VERSION_ID
+    # 提取主版本号数字 (例如 "22.04" -> 22, "12" -> 12)
+    OS_MAJOR=$(echo "$VERSION_ID" | cut -d'.' -f1)
 else
     echo -e "${RED}错误: 无法识别当前操作系统！${PLAIN}"
     exit 1
 fi
 
+# 系统兼容性阻断检查
+COMPATIBLE=0
+if [ "$OS_NAME" = "debian" ] && [ "$OS_MAJOR" -ge 11 ]; then
+    COMPATIBLE=1
+elif [ "$OS_NAME" = "ubuntu" ] && [ "$OS_MAJOR" -ge 22 ]; then
+    COMPATIBLE=1
+fi
+
+if [ $COMPATIBLE -eq 0 ]; then
+    echo -e "${RED}错误: 本脚本仅支持 Debian 11+ 和 Ubuntu 22.04+ 系统！${PLAIN}"
+    echo -e "当前检测系统为: ${YELLOW}${OS_NAME} ${VERSION_ID}${PLAIN}"
+    exit 1
+fi
+
 echo -e "${BLUE}====================================================${PLAIN}"
-echo -e "${GREEN}      欢迎使用 LXDE 中文桌面智能交互安装脚本${PLAIN}"
+echo -e "${GREEN}    欢迎使用 LXDE 中文桌面智能交互安装脚本 (最终版)${PLAIN}"
 echo -e "${BLUE}====================================================${PLAIN}"
-echo -e "当前系统检测结果: ${YELLOW}${OS_NAME} ${OS_VER}${PLAIN}\n"
+echo -e "当前系统检测结果: ${YELLOW}${OS_NAME} ${VERSION_ID} (主版本: ${OS_MAJOR})${PLAIN}\n"
 
 # 交互获取用户网络带宽
 echo -e "${BLUE}[网络参数交互采集]${PLAIN}"
@@ -50,20 +65,22 @@ echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NE
 echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAIN}"
 apt update && apt upgrade -y
 
+# 核心通用依赖池
 BASE_PKGS="sudo curl wget vim locales ttf-wqy-zenhei xfonts-intl-chinese \
 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgtk-3-0 libgbm1 libasound2 \
 libsecret-1-0 leafpad xarchiver zip unzip p7zip-full tar gzip bzip2"
 
+# 根据系统大版本，精确处理依赖和组件包名差异
 if [ "$OS_NAME" = "debian" ]; then
     BASE_PKGS="${BASE_PKGS} task-lists"
-    if [ "$OS_VER" = "11" ]; then
+    if [ "$OS_MAJOR" -eq 11 ]; then
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
     else
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.1-0"
     fi
 elif [ "$OS_NAME" = "ubuntu" ]; then
     BASE_PKGS="${BASE_PKGS} software-properties-common"
-    if [ "$OS_VER" = "20.04" ] || [ "$OS_VER" = "22.04" ]; then
+    if [ "$OS_MAJOR" -eq 22 ]; then
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
     else
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.1-0"
@@ -97,7 +114,7 @@ if [ -f /etc/xrdp/xrdp.ini ]; then
         sed -i '/\[globals\]/a MaxSessions=10' /etc/xrdp/xrdp.ini
     fi
     
-    # 根据上传带宽大小智能干预图像色深（10M为低带宽分水岭）
+    # 智能干预图像色深（10M为低带宽分水岭）
     if [ "$NET_UP" -le 10 ]; then
         echo -e "${YELLOW}检测为低上传带宽限制，强制启用 16-bit 深度画面压缩流...${PLAIN}"
         sed -i 's/max_bpp=.*/max_bpp=16/g' /etc/xrdp/xrdp.ini
@@ -166,7 +183,7 @@ else
     echo -e "${RED}错误: OxideTerm 下载失败！${PLAIN}"
 fi
 
-# 8. 全自动安全部署快捷方式
+# 8. 全自动安全部署快捷方式 (仅快捷方式，无任何自启动)
 echo -e "${BLUE}[8/11] 正在跨系统动态生成桌面快捷方式结构...${PLAIN}"
 mkdir -p /root/桌面 /root/Desktop /etc/skel/桌面 /etc/skel/Desktop
 
@@ -231,7 +248,6 @@ cat <<EOF >> /etc/security/limits.conf
 *               hard    memlock         unlimited
 EOF
 
-# 基础高并发调优
 cat <<EOF >> /etc/sysctl.conf
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_tw_reuse = 1
@@ -258,15 +274,17 @@ apt autoremove -y && apt clean
 
 # 部署完成提示
 echo -e "\n${GREEN}====================================================${PLAIN}"
-echo -e "${GREEN} 恭喜！全交互式智能带宽动态优化中文桌面环境部署成功！${PLAIN}"
+echo -e "${GREEN} 恭喜！多系统兼容（Debian 11+ / Ubuntu 22.04+）最终版部署成功！${PLAIN}"
 echo -e "${GREEN}====================================================${PLAIN}"
-echo -e "${YELLOW}当前专属网络调优状态：${PLAIN}"
+echo -e "${YELLOW}当前环境版本及网络调优状态：${PLAIN}"
+echo -e "▶ 宿主系统版本: ${GREEN}${OS_NAME} ${VERSION_ID}${PLAIN}"
 echo -e "▶ 目标用户网络: [上传: ${NET_UP} Mbps] / [下载: ${NET_DOWN} Mbps]"
 if [ "$NET_UP" -le 10 ]; then
     echo -e "▶ RDP 调优反馈: ${RED}低带宽防卡顿模式已激活（16位色高压缩传输）${PLAIN}"
 else
     echo -e "▶ RDP 调优反馈: ${GREEN}宽带充足模式已激活（32位高清色渲染输出）${PLAIN}"
 fi
+
 echo -e "▶ 远程连接通道: Windows 远程桌面 (RDP) 连接服务器 3389 端口"
 echo -e "▶ 桌面运维客户端: 桌面上已生成 Netcatty 和 OxideTerm 两个现代 SSH 工具"
 echo -e "▶ 注意事项:     请确保您的云服务器控制台（安全组）已开放 3389 端口！"

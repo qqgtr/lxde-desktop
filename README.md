@@ -1,8 +1,8 @@
-# 多系统兼容纯净 LXDE 中文桌面 + 智能带宽交互调优一键脚本
+# 多系统兼容纯净 LXDE 中文桌面 + 双远程工具智能带宽交互调优一键脚本（最终版）
 
 ## 项目简介
 
-本项目是一个**交互式**一键自动化部署脚本，用于在 Debian/Ubuntu 服务器上快速搭建极致轻量的 LXDE 中文桌面环境。脚本在运行时会**主动采集用户的实际网络带宽参数**（上传/下载 Mbps），并据此智能调优 XRDP 远程桌面的图像压缩策略与内核 TCP 参数，实现针对不同网络环境的最佳远程桌面体验。
+本项目是一个**交互式**一键自动化部署脚本，用于在 Debian/Ubuntu 服务器上快速搭建极致轻量的 LXDE 中文桌面环境。脚本内置**系统兼容性阻断检查**（仅允许 Debian 11+ / Ubuntu 22.04+ 运行），并在运行时会**主动采集用户的实际网络带宽参数**（上传/下载 Mbps），据此智能调优 XRDP 远程桌面的图像压缩策略与内核 TCP 参数，实现针对不同网络环境的最佳远程桌面体验。
 
 ## 支持系统
 
@@ -47,12 +47,18 @@
 
 ## 使用方法
 
-```bash
-# 下载脚本后赋予执行权限
-chmod +x lxde.sh
+以 root 权限执行以下一键安装命令：
 
-# 以 root 权限运行
-sudo bash lxde.sh
+**国外服务器：**
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/qqgtr/lxde-desktop/master/lxde.sh)
+```
+
+**国内服务器：**
+
+```bash
+bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/lxde-desktop/master/lxde.sh)
 ```
 
 ### 交互式参数说明
