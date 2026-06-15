@@ -134,24 +134,25 @@ if [ -f /etc/xrdp/xrdp.ini ]; then
         BPP_VAL=32
     fi
     
-    # 使用 awk 精确修改 [globals] section 下的 port 和 bpp 配置，不影响其他 section
-    awk -v port="$RDP_PORT" -v bpp="$BPP_VAL" '
-        BEGIN { in_globals=0; port_found=0 }
-        tolower($0) ~ /^\[globals\]/ { in_globals=1; print; next }
-        /^\[/ && in_globals { in_globals=0 }
-        in_globals && /^[[:space:]]*port[[:space:]]*=/ { print "port="port; port_found=1; next }
+    # 使用 awk 只在 [Globals] section 内修改 bpp 配置，不影响 [vnc] 等其他 section
+    # 兼容 [globals]、[Globals]、[GLOBALS] 以及前导空格
+    awk -v bpp="$BPP_VAL" '
+        BEGIN { in_globals=0 }
+        /^[[:space:]]*\[[Gg][Ll][Oo][Bb][Aa][Ll][Ss]\]/ { in_globals=1; print; next }
+        /^[[:space:]]*\[/ && in_globals { in_globals=0 }
         in_globals && /^[[:space:]]*max_bpp[[:space:]]*=/ { print "max_bpp="bpp; next }
         in_globals && /^[[:space:]]*xrdp\.bpp[[:space:]]*=/ { print "xrdp.bpp="bpp; next }
         { print }
-        END {
-            # 如果 [globals] 中没有 port=，在文件末尾添加（XRDP 会读取）
-            if (!port_found) print "port="port
-        }
     ' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini.tmp
-    
-    # 使用 cp 保留原文件权限和所有权
     cp /tmp/xrdp.ini.tmp /etc/xrdp/xrdp.ini
     rm -f /tmp/xrdp.ini.tmp
+    
+    # 设置自定义端口 - 只替换第一个 port= 行（即 [Globals] 下的）
+    if grep -q "^[[:space:]]*port=" /etc/xrdp/xrdp.ini; then
+        sed -i "0,/^[[:space:]]*port=/s/^[[:space:]]*port=.*/port=${RDP_PORT}/" /etc/xrdp/xrdp.ini
+    else
+        sed -i "/^[[:space:]]*\[[Gg][Ll][Oo][Bb][Aa][Ll][Ss]\]/a port=${RDP_PORT}" /etc/xrdp/xrdp.ini
+    fi
     
     # 修改其他全局配置
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
@@ -329,9 +330,20 @@ EOF
     chmod +x /usr/local/bin/netcatty-root 2>/dev/null
 fi
 
-cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
-cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
-chmod +x /root/桌面/*.desktop /root/Desktop/*.desktop /etc/skel/桌面/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null
+# 复制桌面文件到 Desktop 目录（中英文桌面名兼容）
+for src_dir in /root/桌面 /etc/skel/桌面; do
+    dst_dir="${src_dir%/*}/Desktop"
+    if [ -d "$src_dir" ] && [ "$(ls -A "$src_dir" 2>/dev/null)" ]; then
+        cp -r "$src_dir"/* "$dst_dir"/ 2>/dev/null || true
+    fi
+done
+
+# 给所有桌面文件添加可执行权限
+for dir in /root/桌面 /root/Desktop /etc/skel/桌面 /etc/skel/Desktop; do
+    if [ -d "$dir" ] && ls "$dir"/*.desktop &>/dev/null; then
+        chmod +x "$dir"/*.desktop 2>/dev/null || true
+    fi
+done
 
 # 刷新桌面数据库，确保图标更改立即生效
 update-desktop-database /usr/share/applications/ 2>/dev/null
