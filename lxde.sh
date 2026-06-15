@@ -71,7 +71,16 @@ if ! [[ "$NET_DOWN" =~ ^[0-9]+$ ]]; then
     NET_DOWN=200
 fi
 
-echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps。开始执行部署...${PLAIN}\n"
+read -p "3. 请输入远程桌面端口 (纯数字, 默认 3389): " RDP_PORT
+RDP_PORT=${RDP_PORT:-3389}
+
+# 验证端口是否为有效数字
+if ! [[ "$RDP_PORT" =~ ^[0-9]+$ ]] || [ "$RDP_PORT" -lt 1 ] || [ "$RDP_PORT" -gt 65535 ]; then
+    echo -e "${RED}错误: 端口必须是 1-65535 之间的数字，已使用默认值 3389${PLAIN}"
+    RDP_PORT=3389
+fi
+
+echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps / 端口: ${RDP_PORT}。开始执行部署...${PLAIN}\n"
 
 # 1. 更新系统源并安装基础及多系统兼容依赖包
 echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAIN}"
@@ -116,6 +125,12 @@ chmod +x /etc/skel/.xsession /root/.xsession
 # 3. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
+    # 设置自定义端口
+    sed -i "s/port=.*/port=${RDP_PORT}/g" /etc/xrdp/xrdp.ini
+    if ! grep -q "^port=" /etc/xrdp/xrdp.ini; then
+        sed -i '/\[globals\]/a port='"${RDP_PORT}" /etc/xrdp/xrdp.ini
+    fi
+    
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
     if ! grep -q "MaxSessions" /etc/xrdp/xrdp.ini; then
         sed -i '/\[globals\]/a MaxSessions=10' /etc/xrdp/xrdp.ini
@@ -379,15 +394,16 @@ echo -e "${GREEN}====================================================${PLAIN}"
 echo -e "${YELLOW}当前环境版本及网络调优状态：${PLAIN}"
 echo -e "▶ 宿主系统版本: ${GREEN}${OS_NAME} ${VERSION_ID}${PLAIN}"
 echo -e "▶ 目标用户网络: [上传: ${NET_UP} Mbps] / [下载: ${NET_DOWN} Mbps]"
+echo -e "▶ 远程桌面端口: ${GREEN}${RDP_PORT}${PLAIN}"
 if [ "$NET_UP" -le 10 ]; then
     echo -e "▶ RDP 调优反馈: ${RED}低带宽防卡顿模式已激活（16位色高压缩传输）${PLAIN}"
 else
     echo -e "▶ RDP 调优反馈: ${GREEN}宽带充足模式已激活（32位高清色渲染输出）${PLAIN}"
 fi
 
-echo -e "▶ 远程连接通道: Windows 远程桌面 (RDP) 连接服务器 3389 端口"
+echo -e "▶ 远程连接通道: Windows 远程桌面 (RDP) 连接服务器 ${RDP_PORT} 端口"
 echo -e "▶ 桌面运维客户端: 桌面上已生成 Netcatty 和 OxideTerm 两个现代 SSH 工具"
-echo -e "▶ 注意事项:     请确保您的云服务器控制台（安全组）已开放 3389 端口！"
+echo -e "▶ 注意事项:     请确保您的云服务器控制台（安全组）已开放 ${RDP_PORT} 端口！"
 echo -e "${GREEN}====================================================${PLAIN}"
 
 # 提示是否重启
