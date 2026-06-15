@@ -101,15 +101,8 @@ fi
 
 apt install -y $BASE_PKGS
 
-# 2. 配置全中文环境
-echo -e "${BLUE}[2/11] 配置系统中文本地化 (UTF-8)...${PLAIN}"
-sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
-locale-gen
-update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh
-export LANG=zh_CN.UTF-8
-
-# 3. 安装极简纯净 LXDE 桌面与 XRDP (无 LightDM)
-echo -e "${BLUE}[3/11] 安装轻量纯净 LXDE 桌面核心与远程桌面服务...${PLAIN}"
+# 2. 安装极简纯净 LXDE 桌面与 XRDP (无 LightDM)
+echo -e "${BLUE}[2/11] 安装轻量纯净 LXDE 桌面核心与远程桌面服务...${PLAIN}"
 apt install -y xorg lxde-core xrdp fcitx5 fcitx5-pinyin
 
 # 注入全局和 root 用户环境会话变量
@@ -120,8 +113,8 @@ echo -e "$ENV_SESSIONS" > /root/.xsession
 # 必须给 .xsession 添加可执行权限，否则 XRDP 无法启动桌面会话
 chmod +x /etc/skel/.xsession /root/.xsession
 
-# 4. 优化 XRDP 会话管理与智能图像压缩调优
-echo -e "${BLUE}[4/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
+# 3. 优化 XRDP 会话管理与智能图像压缩调优
+echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
     if ! grep -q "MaxSessions" /etc/xrdp/xrdp.ini; then
@@ -189,16 +182,16 @@ POLKIT
 systemctl enable xrdp
 systemctl restart xrdp
 
-# 5. 跨系统兼容安装超轻量现代浏览器
-echo -e "${BLUE}[5/11] 正在安装极简浏览器...${PLAIN}"
+# 4. 跨系统兼容安装超轻量现代浏览器
+echo -e "${BLUE}[4/11] 正在安装极简浏览器...${PLAIN}"
 apt install -y midori 2>/dev/null
 if [ $? -ne 0 ]; then
     echo -e "${YELLOW}当前发行版仓库未提供 midori，正在自动切换备用极简浏览器 epiphany-browser...${PLAIN}"
     apt install -y epiphany-browser
 fi
 
-# 6. 【项目一】下载并安装 Netcatty SSH 客户端
-echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
+# 5. 【项目一】下载并安装 Netcatty SSH 客户端
+echo -e "${BLUE}[5/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
 # API 请求不使用代理（gh-proxy 不支持 api.github.com）
 NC_API_URL="https://api.github.com/repos/binaricat/Netcatty/releases/latest"
 # 匹配 linux-amd64.deb 或 amd64.deb
@@ -218,8 +211,8 @@ else
     fi
 fi
 
-# 7. 【项目二】下载并安装 OxideTerm SSH 客户端
-echo -e "${BLUE}[7/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
+# 6. 【项目二】下载并安装 OxideTerm SSH 客户端
+echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
 # API 请求不使用代理（gh-proxy 不支持 api.github.com）
 OX_API_URL="https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/latest"
 # 匹配 x64.deb 或 amd64.deb
@@ -239,8 +232,8 @@ else
     fi
 fi
 
-# 8. 全自动安全部署快捷方式 (仅快捷方式，无任何自启动)
-echo -e "${BLUE}[8/11] 正在跨系统动态生成桌面快捷方式结构...${PLAIN}"
+# 7. 全自动安全部署快捷方式 (仅快捷方式，无任何自启动)
+echo -e "${BLUE}[7/11] 正在跨系统动态生成桌面快捷方式结构...${PLAIN}"
 mkdir -p /root/桌面 /root/Desktop /etc/skel/桌面 /etc/skel/Desktop
 
 copy_desktop_icon() {
@@ -269,8 +262,8 @@ cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
 cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
 chmod +x /root/桌面/*.desktop /root/Desktop/*.desktop /etc/skel/桌面/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null
 
-# 9. 配置 PCManFM 文件管理器右键一键解压菜单
-echo -e "${BLUE}[9/11] 配置 PCManFM 文件管理器右键菜单增强...${PLAIN}"
+# 8. 配置 PCManFM 文件管理器右键一键解压菜单
+echo -e "${BLUE}[8/11] 配置 PCManFM 文件管理器右键菜单增强...${PLAIN}"
 mkdir -p /root/.local/share/file-manager/actions
 mkdir -p /etc/skel/.local/share/file-manager/actions
 
@@ -293,8 +286,8 @@ Exec=xarchiver -e %f
 EOF
 cp /root/.local/share/file-manager/actions/xarchiver-extract.desktop /etc/skel/.local/share/file-manager/actions/
 
-# 10. 深度性能调优：高并发内核网卡与智能网络接收窗口计算
-echo -e "${BLUE}[10/11] 正在基于下载带宽 (${NET_DOWN}Mbps) 注入动态内核 TCP 调优限制...${PLAIN}"
+# 9. 深度性能调优：高并发内核网卡与智能网络接收窗口计算
+echo -e "${BLUE}[9/11] 正在基于下载带宽 (${NET_DOWN}Mbps) 注入动态内核 TCP 调优限制...${PLAIN}"
 
 # 检查是否已存在配置标记，避免重复追加
 if ! grep -q "# LXDE-DESKTOP-TUNING" /etc/security/limits.conf 2>/dev/null; then
@@ -335,9 +328,16 @@ EOF
 fi
 sysctl -p 2>/dev/null
 
-# 11. 系统瘦身与垃圾清理
-echo -e "${BLUE}[11/11] 清理缓存文件释放系统体积...${PLAIN}"
+# 10. 系统瘦身与垃圾清理
+echo -e "${BLUE}[10/11] 清理缓存文件释放系统体积...${PLAIN}"
 apt autoremove -y && apt clean
+
+# 11. 配置全中文环境（放在最后执行，确保所有组件安装完成后再设置中文）
+echo -e "${BLUE}[11/11] 配置系统中文本地化 (UTF-8)...${PLAIN}"
+sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
+locale-gen
+update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh
+export LANG=zh_CN.UTF-8
 
 # 部署完成提示
 echo -e "\n${GREEN}====================================================${PLAIN}"
