@@ -1,0 +1,279 @@
+#!/bin/bash
+
+# ==============================================================================
+# 脚本名称: 多系统兼容纯净 LXDE 中文桌面 + 智能带宽交互调优一键脚本
+# 支持系统: Debian 11+, Ubuntu 22.04+ (以 root 权限运行)
+# ==============================================================================
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PLAIN='\033[0m'
+
+# GitHub 代理加速节点配置
+GH_PROXY="https://gh-proxy.com"
+
+# 检查是否为 root 用户
+if [ "$(id -u)" != "0" ]; then
+    echo -e "${RED}错误: 必须使用 root 权限运行此脚本！${PLAIN}"
+    exit 1
+fi
+
+# 检测系统发行版与版本
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_NAME=$ID
+    OS_VER=$VERSION_ID
+else
+    echo -e "${RED}错误: 无法识别当前操作系统！${PLAIN}"
+    exit 1
+fi
+
+echo -e "${BLUE}====================================================${PLAIN}"
+echo -e "${GREEN}      欢迎使用 LXDE 中文桌面智能交互安装脚本${PLAIN}"
+echo -e "${BLUE}====================================================${PLAIN}"
+echo -e "当前系统检测结果: ${YELLOW}${OS_NAME} ${OS_VER}${PLAIN}\n"
+
+# 交互获取用户网络带宽
+echo -e "${BLUE}[网络参数交互采集]${PLAIN}"
+read -p "1. 请输入当前机器的 [外网上传带宽] (单位 Mbps, 纯数字, 默认 5): " NET_UP
+NET_UP=${NET_UP:-5}
+
+read -p "2. 请输入当前机器的 [外网下载带宽] (单位 Mbps, 纯数字, 默认 200): " NET_DOWN
+NET_DOWN=${NET_DOWN:-200}
+
+echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps。开始执行部署...${PLAIN}\n"
+
+# 1. 更新系统源并安装基础及多系统兼容依赖包
+echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAIN}"
+apt update && apt upgrade -y
+
+BASE_PKGS="sudo curl wget vim locales ttf-wqy-zenhei xfonts-intl-chinese \
+libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgtk-3-0 libgbm1 libasound2 \
+libsecret-1-0 leafpad xarchiver zip unzip p7zip-full tar gzip bzip2"
+
+if [ "$OS_NAME" = "debian" ]; then
+    BASE_PKGS="${BASE_PKGS} task-lists"
+    if [ "$OS_VER" = "11" ]; then
+        BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
+    else
+        BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.1-0"
+    fi
+elif [ "$OS_NAME" = "ubuntu" ]; then
+    BASE_PKGS="${BASE_PKGS} software-properties-common"
+    if [ "$OS_VER" = "20.04" ] || [ "$OS_VER" = "22.04" ]; then
+        BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
+    else
+        BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.1-0"
+    fi
+fi
+
+apt install -y $BASE_PKGS
+
+# 2. 配置全中文环境
+echo -e "${BLUE}[2/11] 配置系统中文本地化 (UTF-8)...${PLAIN}"
+sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
+locale-gen
+update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh
+export LANG=zh_CN.UTF-8
+
+# 3. 安装极简纯净 LXDE 桌面与 XRDP (无 LightDM)
+echo -e "${BLUE}[3/11] 安装轻量纯净 LXDE 桌面核心与远程桌面服务...${PLAIN}"
+apt install -y --no-install-recommends xorg lxde-core xrdp fcitx5 fcitx5-pinyin
+
+# 注入全局和 root 用户环境会话变量
+mkdir -p /etc/skel /root
+ENV_SESSIONS="export LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nlxsession -s LXDE -e LXDE"
+echo -e "$ENV_SESSIONS" > /etc/skel/.xsession
+echo -e "$ENV_SESSIONS" > /root/.xsession
+
+# 4. 优化 XRDP 会话管理与智能图像压缩调优
+echo -e "${BLUE}[4/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
+if [ -f /etc/xrdp/xrdp.ini ]; then
+    sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
+    if ! grep -q "MaxSessions" /etc/xrdp/xrdp.ini; then
+        sed -i '/\[globals\]/a MaxSessions=10' /etc/xrdp/xrdp.ini
+    fi
+    
+    # 根据上传带宽大小智能干预图像色深（10M为低带宽分水岭）
+    if [ "$NET_UP" -le 10 ]; then
+        echo -e "${YELLOW}检测为低上传带宽限制，强制启用 16-bit 深度画面压缩流...${PLAIN}"
+        sed -i 's/max_bpp=.*/max_bpp=16/g' /etc/xrdp/xrdp.ini
+        sed -i 's/xrdp.bpp=.*/xrdp.bpp=16/g' /etc/xrdp/xrdp.ini
+    else
+        echo -e "${GREEN}上传带宽充裕，采用 32-bit 高清图形流渲染...${PLAIN}"
+        sed -i 's/max_bpp=.*/max_bpp=32/g' /etc/xrdp/xrdp.ini
+        sed -i 's/xrdp.bpp=.*/xrdp.bpp=32/g' /etc/xrdp/xrdp.ini
+    fi
+    
+    sed -i 's/use_compression=.*/use_compression=yes/g' /etc/xrdp/xrdp.ini
+    sed -i 's/crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
+fi
+
+if [ -f /etc/xrdp/sesman.ini ]; then
+    sed -i 's/DisconnectedSessionExpiryTime=.*/DisconnectedSessionExpiryTime=60/g' /etc/xrdp/sesman.ini
+    sed -i 's/IdleSessionExpiryTime=.*/IdleSessionExpiryTime=30/g' /etc/xrdp/sesman.ini
+fi
+
+systemctl enable xrdp
+systemctl restart xrdp
+
+# 5. 跨系统兼容安装超轻量现代浏览器
+echo -e "${BLUE}[5/11] 正在安装极简浏览器...${PLAIN}"
+apt install -y midori 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}当前发行版仓库未提供 midori，正在自动切换备用极简浏览器 epiphany-browser...${PLAIN}"
+    apt install -y epiphany-browser
+fi
+
+# 6. 【项目一】下载并安装 Netcatty SSH 客户端
+echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
+NC_RAW_URL=$(curl -s "${GH_PROXY}https://github.com" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+
+if [ -z "$NC_RAW_URL" ]; then
+    echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
+    NC_URL="${GH_PROXY}https://github.com"
+else
+    NC_URL="${GH_PROXY}${NC_RAW_URL}"
+fi
+
+wget -O /tmp/netcatty.deb "$NC_URL"
+if [ -f /tmp/netcatty.deb ] && [ -s /tmp/netcatty.deb ]; then
+    dpkg -i /tmp/netcatty.deb || apt-get install -f -y
+    rm -f /tmp/netcatty.deb
+else
+    echo -e "${RED}错误: Netcatty 下载失败！${PLAIN}"
+fi
+
+# 7. 【项目二】下载并安装 OxideTerm SSH 客户端
+echo -e "${BLUE}[7/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
+OX_RAW_URL=$(curl -s "${GH_PROXY}https://github.com" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+
+if [ -z "$OX_RAW_URL" ]; then
+    echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
+    OX_URL="${GH_PROXY}https://github.com"
+else
+    OX_URL="${GH_PROXY}${OX_RAW_URL}"
+fi
+
+wget -O /tmp/oxideterm.deb "$OX_URL"
+if [ -f /tmp/oxideterm.deb ] && [ -s /tmp/oxideterm.deb ]; then
+    dpkg -i /tmp/oxideterm.deb || apt-get install -f -y
+    rm -f /tmp/oxideterm.deb
+else
+    echo -e "${RED}错误: OxideTerm 下载失败！${PLAIN}"
+fi
+
+# 8. 全自动安全部署快捷方式
+echo -e "${BLUE}[8/11] 正在跨系统动态生成桌面快捷方式结构...${PLAIN}"
+mkdir -p /root/桌面 /root/Desktop /etc/skel/桌面 /etc/skel/Desktop
+
+copy_desktop_icon() {
+    local pattern=$1
+    local found_file=$(find /usr/share/applications/ -maxdepth 1 -iname "*${pattern}*.desktop" | head -n 1)
+    if [ ! -z "$found_file" ] && [ -f "$found_file" ]; then
+        cp "$found_file" /root/桌面/ && cp "$found_file" /etc/skel/桌面/
+    fi
+}
+
+copy_desktop_icon "midori"
+copy_desktop_icon "epiphany"
+copy_desktop_icon "leafpad"
+copy_desktop_icon "xarchiver"
+copy_desktop_icon "netcatty"
+copy_desktop_icon "oxideterm"
+
+# 针对 Electron 核心的 Netcatty 在 Root 下的沙盒闪退 Bug 进行补修
+TARGET_NC_DESKTOP=$(find /root/桌面/ -name "*netcatty*.desktop")
+if [ ! -z "$TARGET_NC_DESKTOP" ] && [ -f "$TARGET_NC_DESKTOP" ]; then
+    sed -i 's/Exec=netcatty/Exec=netcatty --no-sandbox/g' /root/桌面/*netcatty*.desktop 2>/dev/null
+    sed -i 's/Exec=netcatty/Exec=netcatty --no-sandbox/g' /etc/skel/桌面/*netcatty*.desktop 2>/dev/null
+fi
+
+cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
+cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
+chmod +x /root/桌面/*.desktop /root/Desktop/*.desktop /etc/skel/桌面/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null
+
+# 9. 配置 PCManFM 文件管理器右键一键解压菜单
+echo -e "${BLUE}[9/11] 配置 PCManFM 文件管理器右键菜单增强...${PLAIN}"
+mkdir -p /root/.local/share/file-manager/actions
+mkdir -p /etc/skel/.local/share/file-manager/actions
+
+cat <<EOF > /root/.local/share/file-manager/actions/xarchiver-extract.desktop
+[Desktop Action xarchiver-extract]
+Name=使用 Xarchiver 提取到当前文件夹
+Name[zh_CN]=使用 Xarchiver 提取到当前文件夹
+Icon=xarchiver
+Exec=xarchiver -e %f
+
+[Desktop Entry]
+Type=Action
+Profiles=profile-zero;
+Name=使用 Xarchiver 提取
+Name[zh_CN]=使用 Xarchiver 提取
+
+[X-Action-Profile profile-zero]
+MimeTypes=application/x-7z-compressed;application/zip;application/x-tar;application/x-gzip;application/x-bzip2;
+Exec=xarchiver -e %f
+EOF
+cp /root/.local/share/file-manager/actions/xarchiver-extract.desktop /etc/skel/.local/share/file-manager/actions/
+
+# 10. 深度性能调优：高并发内核网卡与智能网络接收窗口计算
+echo -e "${BLUE}[10/11] 正在基于下载带宽 (${NET_DOWN}Mbps) 注入动态内核 TCP 调优限制...${PLAIN}"
+cat <<EOF >> /etc/security/limits.conf
+*               soft    nofile          65535
+*               hard    nofile          65535
+*               soft    nproc           4096
+*               hard    nproc           4096
+*               soft    memlock         unlimited
+*               hard    memlock         unlimited
+EOF
+
+# 基础高并发调优
+cat <<EOF >> /etc/sysctl.conf
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 30
+net.ipv4.tcp_max_syn_backlog = 8192
+net.ipv4.tcp_max_tw_buckets = 5000
+fs.file-max = 65535
+EOF
+
+# 动态扩展高带宽接收窗口（如果下载带宽大于 100Mbps 触发）
+if [ "$NET_DOWN" -gt 100 ]; then
+    cat <<EOF >> /etc/sysctl.conf
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+EOF
+fi
+sysctl -p 2>/dev/null
+
+# 11. 系统瘦身与垃圾清理
+echo -e "${BLUE}[11/11] 清理缓存文件释放系统体积...${PLAIN}"
+apt autoremove -y && apt clean
+
+# 部署完成提示
+echo -e "\n${GREEN}====================================================${PLAIN}"
+echo -e "${GREEN} 恭喜！全交互式智能带宽动态优化中文桌面环境部署成功！${PLAIN}"
+echo -e "${GREEN}====================================================${PLAIN}"
+echo -e "${YELLOW}当前专属网络调优状态：${PLAIN}"
+echo -e "▶ 目标用户网络: [上传: ${NET_UP} Mbps] / [下载: ${NET_DOWN} Mbps]"
+if [ "$NET_UP" -le 10 ]; then
+    echo -e "▶ RDP 调优反馈: ${RED}低带宽防卡顿模式已激活（16位色高压缩传输）${PLAIN}"
+else
+    echo -e "▶ RDP 调优反馈: ${GREEN}宽带充足模式已激活（32位高清色渲染输出）${PLAIN}"
+fi
+echo -e "▶ 远程连接通道: Windows 远程桌面 (RDP) 连接服务器 3389 端口"
+echo -e "▶ 桌面运维客户端: 桌面上已生成 Netcatty 和 OxideTerm 两个现代 SSH 工具"
+echo -e "▶ 注意事项:     请确保您的云服务器控制台（安全组）已开放 3389 端口！"
+echo -e "${GREEN}====================================================${PLAIN}"
+
+# 提示是否重启
+read -p "是否现在重启系统以使所有优化生效？(y/n): " REBOOT_CHOICE
+if [ "$REBOOT_CHOICE" = "y" ] || [ "$REBOOT_CHOICE" = "Y" ]; then
+    reboot
+fi
