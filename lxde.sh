@@ -182,13 +182,9 @@ POLKIT
 systemctl enable xrdp
 systemctl restart xrdp
 
-# 4. 跨系统兼容安装超轻量现代浏览器
-echo -e "${BLUE}[4/11] 正在安装极简浏览器...${PLAIN}"
-apt install -y midori 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo -e "${YELLOW}当前发行版仓库未提供 midori，正在自动切换备用极简浏览器 epiphany-browser...${PLAIN}"
-    apt install -y epiphany-browser
-fi
+# 4. 跨系统兼容安装 Firefox ESR 浏览器
+echo -e "${BLUE}[4/11] 正在安装 Firefox ESR 浏览器...${PLAIN}"
+apt install -y firefox-esr
 
 # 5. 【项目一】下载并安装 Netcatty SSH 客户端
 echo -e "${BLUE}[5/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
@@ -244,8 +240,7 @@ copy_desktop_icon() {
     fi
 }
 
-copy_desktop_icon "midori"
-copy_desktop_icon "epiphany"
+copy_desktop_icon "firefox-esr"
 copy_desktop_icon "leafpad"
 copy_desktop_icon "xarchiver"
 copy_desktop_icon "netcatty"
