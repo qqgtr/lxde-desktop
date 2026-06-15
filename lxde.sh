@@ -89,7 +89,7 @@ apt update && apt upgrade -y
 # 核心通用依赖池
 BASE_PKGS="sudo curl wget vim \
 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgtk-3-0 libgbm1 libasound2 \
-libsecret-1-0 leafpad xarchiver zip unzip p7zip-full tar gzip bzip2"
+libsecret-1-0 mousepad xarchiver zip unzip p7zip-full tar gzip bzip2"
 
 # 根据系统大版本，精确处理依赖和组件包名差异
 if [ "$OS_NAME" = "debian" ]; then
@@ -286,7 +286,7 @@ copy_desktop_icon() {
 if [ "$BROWSER_INSTALLED" -eq 1 ]; then
     copy_desktop_icon "firefox-esr" || copy_desktop_icon "firefox" || copy_desktop_icon "chromium" || true
 fi
-copy_desktop_icon "leafpad"
+copy_desktop_icon "mousepad"
 copy_desktop_icon "xarchiver"
 copy_desktop_icon "netcatty"
 copy_desktop_icon "oxideterm"
