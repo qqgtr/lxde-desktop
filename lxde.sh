@@ -116,7 +116,7 @@ apt install -y xorg lxde-core xrdp fcitx5 fcitx5-pinyin lxterminal
 
 # 注入全局和 root 用户环境会话变量
 mkdir -p /etc/skel /root
-ENV_SESSIONS="export LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nlxsession -s LXDE -e LXDE"
+ENV_SESSIONS="#!/bin/sh\nexport LANG=zh_CN.UTF-8\nexport XDG_DATA_DIRS=/usr/share/lxde:/usr/local/share:/usr/share\nexec lxsession -s LXDE -e LXDE"
 echo -e "$ENV_SESSIONS" > /etc/skel/.xsession
 echo -e "$ENV_SESSIONS" > /root/.xsession
 # 必须给 .xsession 添加可执行权限，否则 XRDP 无法启动桌面会话
@@ -125,12 +125,14 @@ chmod +x /etc/skel/.xsession /root/.xsession
 # 3. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
-    # 设置自定义端口 - 只修改 [globals] section 下的 port
-    sed -i '/^\[globals\]/,/^\[/{s/^port=.*/port='"${RDP_PORT}"'/}' /etc/xrdp/xrdp.ini
-    # 如果 [globals] 下没有 port 配置，则添加
-    if ! grep -A 20 '^\[globals\]' /etc/xrdp/xrdp.ini | grep -q "^port="; then
-        sed -i '/^\[globals\]/a port='"${RDP_PORT}" /etc/xrdp/xrdp.ini
-    fi
+    # 设置自定义端口 - 使用 awk 精确修改 [globals] section 下的 port
+    awk -v port="$RDP_PORT" '
+        /^\[globals\]/ { in_globals=1 }
+        /^\[/ && !/^\[globals\]/ { in_globals=0 }
+        in_globals && /^port=/ { $0="port="port; found=1 }
+        { print }
+        END { if (!found) print "port="port }
+    ' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini.tmp && mv /tmp/xrdp.ini.tmp /etc/xrdp/xrdp.ini
     
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
     if ! grep -q "MaxSessions" /etc/xrdp/xrdp.ini; then
@@ -200,11 +202,20 @@ systemctl restart xrdp
 
 # 4. 跨系统兼容安装 Firefox ESR 浏览器
 echo -e "${BLUE}[4/11] 正在安装 Firefox ESR 浏览器...${PLAIN}"
-if ! apt install -y firefox-esr; then
+BROWSER_INSTALLED=0
+if apt install -y firefox-esr; then
+    BROWSER_INSTALLED=1
+else
     echo -e "${YELLOW}firefox-esr 安装失败，尝试安装 firefox...${PLAIN}"
-    if ! apt install -y firefox; then
+    if apt install -y firefox; then
+        BROWSER_INSTALLED=1
+    else
         echo -e "${YELLOW}firefox 安装失败，尝试安装 chromium...${PLAIN}"
-        apt install -y chromium || echo -e "${RED}警告: 浏览器安装失败，请手动安装${PLAIN}"
+        if apt install -y chromium; then
+            BROWSER_INSTALLED=1
+        else
+            echo -e "${RED}警告: 浏览器安装失败，请手动安装${PLAIN}"
+        fi
     fi
 fi
 
@@ -263,7 +274,10 @@ copy_desktop_icon() {
     fi
 }
 
-copy_desktop_icon "firefox-esr"
+# 智能复制浏览器桌面快捷方式（根据实际安装的浏览器）
+if [ "$BROWSER_INSTALLED" -eq 1 ]; then
+    copy_desktop_icon "firefox-esr" || copy_desktop_icon "firefox" || copy_desktop_icon "chromium"
+fi
 copy_desktop_icon "leafpad"
 copy_desktop_icon "xarchiver"
 copy_desktop_icon "netcatty"
@@ -288,12 +302,11 @@ if [ -n "$NC_EXEC_PATH" ]; then
             cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
             
             # 只修改包含 netcatty 的 Exec 行（不区分大小写），保留原始大小写
-            # 使用更精确的正则：匹配 Exec= 开头，且行中包含 netcatty（忽略大小写）
             if grep -qi "^Exec=.*netcatty" "$DESKTOP_FILE"; then
-                # 如果还没有 --no-sandbox，则添加
+                # 如果还没有 --no-sandbox，则添加（插入到 %U/%f 之前，确保是程序参数而非文件参数）
                 if ! grep -q "\-\-no-sandbox" "$DESKTOP_FILE"; then
-                    # 使用 perl 进行更精确的替换，保留原始大小写
-                    perl -i -pe 's/^(Exec=.*)$/$1 --no-sandbox/ if /netcatty/i' "$DESKTOP_FILE"
+                    # 将 --no-sandbox 插入到 netcatty 可执行文件路径之后、%U 等占位符之前
+                    perl -i -pe 's/^(Exec=\S+)(.*)$/$1 --no-sandbox$2/ if /netcatty/i' "$DESKTOP_FILE"
                     echo "已为 $DESKTOP_FILE 添加 --no-sandbox 参数"
                 fi
             fi
@@ -312,6 +325,10 @@ fi
 cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
 cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
 chmod +x /root/桌面/*.desktop /root/Desktop/*.desktop /etc/skel/桌面/*.desktop /etc/skel/Desktop/*.desktop 2>/dev/null
+
+# 刷新桌面数据库，确保图标更改立即生效
+update-desktop-database /usr/share/applications/ 2>/dev/null
+update-desktop-database /root/桌面/ 2>/dev/null
 
 # 8. 配置 PCManFM 文件管理器右键一键解压菜单
 echo -e "${BLUE}[8/11] 配置 PCManFM 文件管理器右键菜单增强...${PLAIN}"
