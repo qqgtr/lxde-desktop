@@ -223,12 +223,13 @@ fi
 echo -e "${BLUE}[7/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
 # API 请求不使用代理（gh-proxy 不支持 api.github.com）
 OX_API_URL="https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/latest"
-OX_RAW_URL=$(curl -s "$OX_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+# 匹配 x64.deb 或 amd64.deb
+OX_RAW_URL=$(curl -s "$OX_API_URL" | grep -E "browser_download_url.*linux_x64\.deb|browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$OX_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    # Fallback 使用代理加速
-    OX_URL="${GH_PROXY}/https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/oxideterm_amd64.deb"
+    # Fallback 使用代理加速 - 使用正确的文件名格式
+    OX_URL="${GH_PROXY}/https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/OxideTerm_linux_x64.deb"
 else
     OX_URL="${GH_PROXY}/${OX_RAW_URL}"
 fi
