@@ -103,7 +103,7 @@ apt install -y $BASE_PKGS
 
 # 2. 安装极简纯净 LXDE 桌面与 XRDP (无 LightDM)
 echo -e "${BLUE}[2/11] 安装轻量纯净 LXDE 桌面核心与远程桌面服务...${PLAIN}"
-apt install -y xorg lxde-core xrdp fcitx5 fcitx5-pinyin
+apt install -y xorg lxde-core xrdp fcitx5 fcitx5-pinyin lxterminal
 
 # 注入全局和 root 用户环境会话变量
 mkdir -p /etc/skel /root
