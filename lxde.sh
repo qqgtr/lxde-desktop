@@ -78,7 +78,7 @@ echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAI
 apt update && apt upgrade -y
 
 # 核心通用依赖池
-BASE_PKGS="sudo curl wget vim locales ttf-wqy-zenhei xfonts-intl-chinese \
+BASE_PKGS="sudo curl wget vim \
 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgtk-3-0 libgbm1 libasound2 \
 libsecret-1-0 leafpad xarchiver zip unzip p7zip-full tar gzip bzip2"
 
@@ -369,6 +369,8 @@ apt autoremove -y && apt clean
 
 # 11. 配置全中文环境（放在最后执行，确保所有组件安装完成后再设置中文）
 echo -e "${BLUE}[11/11] 配置系统中文本地化 (UTF-8)...${PLAIN}"
+# 安装中文相关依赖包
+apt install -y locales ttf-wqy-zenhei xfonts-intl-chinese
 sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
 locale-gen
 update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh
