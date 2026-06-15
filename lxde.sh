@@ -125,14 +125,14 @@ chmod +x /etc/skel/.xsession /root/.xsession
 # 3. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
-    # 设置自定义端口 - 使用 awk 精确修改 [globals] section 下的 port
-    awk -v port="$RDP_PORT" '
-        /^\[globals\]/ { in_globals=1 }
-        /^\[/ && !/^\[globals\]/ { in_globals=0 }
-        in_globals && /^port=/ { $0="port="port; found=1 }
-        { print }
-        END { if (!found) print "port="port }
-    ' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini.tmp && mv /tmp/xrdp.ini.tmp /etc/xrdp/xrdp.ini
+    # 设置自定义端口 - 使用 sed 精确修改 [globals] section 下的 port
+    if grep -q "^port=" /etc/xrdp/xrdp.ini; then
+        # 如果存在 port= 行，直接替换（xrdp.ini 中 port= 只在 [globals] 下）
+        sed -i "s/^port=.*/port=${RDP_PORT}/" /etc/xrdp/xrdp.ini
+    else
+        # 如果不存在，在 [globals] 行后插入
+        sed -i "/^\[globals\]/a port=${RDP_PORT}" /etc/xrdp/xrdp.ini
+    fi
     
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
     if ! grep -q "MaxSessions" /etc/xrdp/xrdp.ini; then
@@ -197,8 +197,8 @@ ResultInactive=no
 ResultActive=yes
 POLKIT
 
-systemctl enable xrdp
-systemctl restart xrdp
+systemctl enable xrdp xrdp-sesman
+systemctl restart xrdp xrdp-sesman
 
 # 4. 跨系统兼容安装 Firefox ESR 浏览器
 echo -e "${BLUE}[4/11] 正在安装 Firefox ESR 浏览器...${PLAIN}"
