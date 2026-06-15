@@ -43,11 +43,9 @@
 - **Xarchiver**：多格式压缩解压工具（支持 7z/zip/tar/gz/bz2）
 
 ### 系统调优
-- **内核网络栈优化**：TCP SYN Cookie、TW 复用、连接超时缩短等
-- **高带宽接收窗口**：下载 > 100Mbps 时自动注入 `rmem_max`/`wmem_max` 16MB 缓冲区
-- **文件描述符与进程数提升**：nofile/nproc 提升至 65535/4096
+- **内核网络优化**：TCP SYN Cookie、TW 复用、连接超时缩短等
 - **PCManFM 右键菜单增强**：一键解压归档文件
-- **系统自动瘦身**：部署完成后清理缓存
+- **系统自动瘦身**：部署完成后清理缓存和冗余包
 
 ## 使用方法
 
@@ -87,7 +85,7 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 | 6/11 | 通过 GitHub 代理下载并安装 OxideTerm SSH 客户端 |
 | 7/11 | 自动生成桌面快捷方式（浏览器、编辑器、解压工具、SSH 工具） |
 | 8/11 | 配置 PCManFM 文件管理器右键解压菜单 |
-| 9/11 | 基于下载带宽智能注入内核 TCP 调优参数 |
+| 9/11 | 注入基础内核网络优化参数（TCP SYN Cookie、TW 复用） |
 | 10/11 | 清理系统缓存与冗余包，卸载 XTerm |
 | 11/11 | 安装中文依赖并配置系统中文本地化（zh_CN.UTF-8） |
 
@@ -100,12 +98,12 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 | ≤ 10 Mbps | 16-bit | 低带宽防卡顿模式（高压缩传输） |
 | > 10 Mbps | 32-bit | 宽带充裕模式（高清色渲染） |
 
-### 内核 TCP 接收窗口策略（步骤 10）
+### 内核网络优化（步骤 9）
 
-| 下载带宽 | 行为 |
-|----------|------|
-| ≤ 100 Mbps | 仅注入基础高并发调优参数 |
-| > 100 Mbps | 额外注入 16MB 级 TCP 收发缓冲区（`rmem_max`/`wmem_max` = 16777216） |
+| TCP 参数 | 值 | 作用 |
+|----------|----|------|
+| `tcp_syncookies` | 1 | 防范 SYN Flood 攻击 |
+| `tcp_tw_reuse` | 1 | 复用 TIME-WAIT 连接 |
 
 ## 连接指南
 
@@ -131,24 +129,10 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 
 ### 内核调优参数（`/etc/sysctl.conf`）
 
-**基础参数（始终注入）：**
-
 | 参数 | 值 | 作用 |
 |------|----|------|
 | `tcp_syncookies` | 1 | 防范 SYN Flood 攻击 |
 | `tcp_tw_reuse` | 1 | 复用 TIME-WAIT 连接 |
-| `tcp_fin_timeout` | 30 | 缩短 FIN-WAIT-2 超时 |
-| `tcp_max_syn_backlog` | 8192 | 增大 SYN 队列 |
-| `tcp_max_tw_buckets` | 5000 | 限制 TIME-WAIT 桶数 |
-
-**高带宽扩展参数（下载 > 100Mbps 时注入）：**
-
-| 参数 | 值 | 作用 |
-|------|----|------|
-| `rmem_max` | 16777216 | 最大接收缓冲区 16MB |
-| `wmem_max` | 16777216 | 最大发送缓冲区 16MB |
-| `tcp_rmem` | 4096 87380 16777216 | TCP 接收缓冲区自动调优 |
-| `tcp_wmem` | 4096 65536 16777216 | TCP 发送缓冲区自动调优 |
 
 ### GitHub 代理
 

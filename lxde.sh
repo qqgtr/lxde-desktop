@@ -87,20 +87,18 @@ echo -e "${BLUE}[1/11] 更新系统并安装环境所需的底座依赖...${PLAI
 apt update && apt upgrade -y
 
 # 核心通用依赖池
-BASE_PKGS="sudo curl wget vim \
+BASE_PKGS="curl wget \
 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgtk-3-0 libgbm1 libasound2 \
 libsecret-1-0 featherpad xarchiver zip unzip p7zip-full tar gzip bzip2"
 
 # 根据系统大版本，精确处理依赖和组件包名差异
 if [ "$OS_NAME" = "debian" ]; then
-    BASE_PKGS="${BASE_PKGS} task-lists"
     if [ "$OS_MAJOR" -eq 11 ]; then
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
     else
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.1-0"
     fi
 elif [ "$OS_NAME" = "ubuntu" ]; then
-    BASE_PKGS="${BASE_PKGS} software-properties-common"
     if [ "$OS_MAJOR" -eq 22 ]; then
         BASE_PKGS="${BASE_PKGS} libwebkit2gtk-4.0-3"
     else
@@ -191,17 +189,6 @@ exec startlxde
 STARTWM
     chmod +x /etc/xrdp/startwm.sh
 fi
-
-# 配置 polkit 规则放行 XRDP 会话，避免认证弹窗阻塞桌面启动
-mkdir -p /etc/polkit-1/localauthority/50-local.d
-cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla << 'POLKIT'
-[Allow Colord all Users]
-Identity=unix-user:*
-Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
-ResultAny=no
-ResultInactive=no
-ResultActive=yes
-POLKIT
 
 systemctl enable xrdp xrdp-sesman
 systemctl restart xrdp xrdp-sesman
@@ -373,58 +360,27 @@ Exec=xarchiver -e %f
 EOF
 cp /root/.local/share/file-manager/actions/xarchiver-extract.desktop /etc/skel/.local/share/file-manager/actions/
 
-# 9. 深度性能调优：高并发内核网卡与智能网络接收窗口计算
-echo -e "${BLUE}[9/11] 正在基于下载带宽 (${NET_DOWN}Mbps) 注入动态内核 TCP 调优限制...${PLAIN}"
-
-# 检查是否已存在配置标记，避免重复追加
-if ! grep -q "# LXDE-DESKTOP-TUNING" /etc/security/limits.conf 2>/dev/null; then
-    cat <<EOF >> /etc/security/limits.conf
-# LXDE-DESKTOP-TUNING
-*               soft    nofile          65535
-*               hard    nofile          65535
-*               soft    nproc           4096
-*               hard    nproc           4096
-*               soft    memlock         unlimited
-*               hard    memlock         unlimited
-EOF
-fi
+# 9. 简洁内核网络优化
+echo -e "${BLUE}[9/11] 正在注入基础内核网络优化参数...${PLAIN}"
 
 if ! grep -q "# LXDE-DESKTOP-TUNING" /etc/sysctl.conf 2>/dev/null; then
     cat <<EOF >> /etc/sysctl.conf
 # LXDE-DESKTOP-TUNING
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_fin_timeout = 30
-net.ipv4.tcp_max_syn_backlog = 8192
-net.ipv4.tcp_max_tw_buckets = 5000
-fs.file-max = 65535
 EOF
-fi
-
-# 动态扩展高带宽接收窗口（如果下载带宽大于 100Mbps 触发）
-if [ "$NET_DOWN" -gt 100 ]; then
-    if ! grep -q "# LXDE-DESKTOP-HIGH-BW" /etc/sysctl.conf 2>/dev/null; then
-        cat <<EOF >> /etc/sysctl.conf
-# LXDE-DESKTOP-HIGH-BW
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
-EOF
-    fi
 fi
 sysctl -p 2>/dev/null
 
 # 10. 系统瘦身与垃圾清理
 echo -e "${BLUE}[10/11] 清理缓存文件释放系统体积...${PLAIN}"
-# 卸载 XTerm、Vim 和截图工具（已有 lxterminal 和 FeatherPad 替代）
-apt purge -y xterm vim gnome-screenshot xfce4-screenshooter scrot 2>/dev/null || true
+apt purge -y xterm gnome-screenshot xfce4-screenshooter scrot 2>/dev/null || true
 apt autoremove -y && apt clean
 
 # 11. 配置全中文环境（放在最后执行，确保所有组件安装完成后再设置中文）
 echo -e "${BLUE}[11/11] 配置系统中文本地化 (UTF-8)...${PLAIN}"
 # 安装中文相关依赖包
-apt install -y locales ttf-wqy-zenhei xfonts-intl-chinese
+apt install -y locales ttf-wqy-zenhei
 sed -i '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen
 locale-gen
 update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh
