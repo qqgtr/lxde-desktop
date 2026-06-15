@@ -252,11 +252,13 @@ copy_desktop_icon "netcatty"
 copy_desktop_icon "oxideterm"
 
 # 针对 Electron 核心的 Netcatty 在 Root 下的沙盒闪退 Bug 进行补修
-TARGET_NC_DESKTOP=$(find /root/桌面/ -name "*netcatty*.desktop")
-if [ ! -z "$TARGET_NC_DESKTOP" ] && [ -f "$TARGET_NC_DESKTOP" ]; then
-    sed -i 's/Exec=netcatty/Exec=netcatty --no-sandbox/g' /root/桌面/*netcatty*.desktop 2>/dev/null
-    sed -i 's/Exec=netcatty/Exec=netcatty --no-sandbox/g' /etc/skel/桌面/*netcatty*.desktop 2>/dev/null
-fi
+# 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件名
+for DESKTOP_FILE in $(find /root/桌面/ /etc/skel/桌面/ /usr/share/applications/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
+    if [ -f "$DESKTOP_FILE" ]; then
+        # 匹配所有 Exec= 行中包含 netcatty 的（不区分大小写），追加 --no-sandbox
+        sed -i -E 's|^(Exec=.*)netcatty(.*)$|\1netcatty --no-sandbox\2|Ig' "$DESKTOP_FILE" 2>/dev/null
+    fi
+done
 
 cp -r /root/桌面/* /root/Desktop/ 2>/dev/null
 cp -r /etc/skel/桌面/* /etc/skel/Desktop/ 2>/dev/null
