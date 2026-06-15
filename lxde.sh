@@ -199,14 +199,16 @@ fi
 
 # 6. 【项目一】下载并安装 Netcatty SSH 客户端
 echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
-NC_API_URL="${GH_PROXY}/https://api.github.com/repos/binaricat/Netcatty/releases/latest"
+# API 请求不使用代理（gh-proxy 不支持 api.github.com）
+NC_API_URL="https://api.github.com/repos/binaricat/Netcatty/releases/latest"
 NC_RAW_URL=$(curl -s "$NC_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$NC_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    NC_URL="https://github.com/binaricat/Netcatty/releases/latest/download/netcatty_amd64.deb"
+    # Fallback 使用代理加速
+    NC_URL="${GH_PROXY}/https://github.com/binaricat/Netcatty/releases/latest/download/netcatty_amd64.deb"
 else
-    NC_URL="${GH_PROXY}${NC_RAW_URL}"
+    NC_URL="${GH_PROXY}/${NC_RAW_URL}"
 fi
 
 wget -O /tmp/netcatty.deb "$NC_URL"
@@ -219,14 +221,16 @@ fi
 
 # 7. 【项目二】下载并安装 OxideTerm SSH 客户端
 echo -e "${BLUE}[7/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
-OX_API_URL="${GH_PROXY}/https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/latest"
+# API 请求不使用代理（gh-proxy 不支持 api.github.com）
+OX_API_URL="https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/latest"
 OX_RAW_URL=$(curl -s "$OX_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$OX_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    OX_URL="https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/oxideterm_amd64.deb"
+    # Fallback 使用代理加速
+    OX_URL="${GH_PROXY}/https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/oxideterm_amd64.deb"
 else
-    OX_URL="${GH_PROXY}${OX_RAW_URL}"
+    OX_URL="${GH_PROXY}/${OX_RAW_URL}"
 fi
 
 wget -O /tmp/oxideterm.deb "$OX_URL"
