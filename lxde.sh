@@ -201,12 +201,12 @@ fi
 echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
 # API 请求不使用代理（gh-proxy 不支持 api.github.com）
 NC_API_URL="https://api.github.com/repos/binaricat/Netcatty/releases/latest"
-NC_RAW_URL=$(curl -s "$NC_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+NC_RAW_URL=$(curl -s "$NC_API_URL" | grep -E "browser_download_url.*linux-amd64\.deb|browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$NC_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    # Fallback 使用代理加速
-    NC_URL="${GH_PROXY}/https://github.com/binaricat/Netcatty/releases/latest/download/netcatty_amd64.deb"
+    # Fallback 使用代理加速 - 使用正确的文件名格式
+    NC_URL="${GH_PROXY}/https://github.com/binaricat/Netcatty/releases/latest/download/Netcatty_linux-amd64.deb"
 else
     NC_URL="${GH_PROXY}/${NC_RAW_URL}"
 fi
