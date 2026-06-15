@@ -91,7 +91,7 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 
 ## 智能调优逻辑
 
-### XRDP 色深策略（步骤 4）
+### XRDP 色深策略（步骤 3）
 
 | 上传带宽 | 色深 | 模式 |
 |----------|------|------|
