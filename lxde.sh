@@ -125,10 +125,11 @@ chmod +x /etc/skel/.xsession /root/.xsession
 # 3. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
-    # 设置自定义端口
-    sed -i "s/port=.*/port=${RDP_PORT}/g" /etc/xrdp/xrdp.ini
-    if ! grep -q "^port=" /etc/xrdp/xrdp.ini; then
-        sed -i '/\[globals\]/a port='"${RDP_PORT}" /etc/xrdp/xrdp.ini
+    # 设置自定义端口 - 只修改 [globals] section 下的 port
+    sed -i '/^\[globals\]/,/^\[/{s/^port=.*/port='"${RDP_PORT}"'/}' /etc/xrdp/xrdp.ini
+    # 如果 [globals] 下没有 port 配置，则添加
+    if ! grep -A 20 '^\[globals\]' /etc/xrdp/xrdp.ini | grep -q "^port="; then
+        sed -i '/^\[globals\]/a port='"${RDP_PORT}" /etc/xrdp/xrdp.ini
     fi
     
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
@@ -199,7 +200,13 @@ systemctl restart xrdp
 
 # 4. 跨系统兼容安装 Firefox ESR 浏览器
 echo -e "${BLUE}[4/11] 正在安装 Firefox ESR 浏览器...${PLAIN}"
-apt install -y firefox-esr
+if ! apt install -y firefox-esr; then
+    echo -e "${YELLOW}firefox-esr 安装失败，尝试安装 firefox...${PLAIN}"
+    if ! apt install -y firefox; then
+        echo -e "${YELLOW}firefox 安装失败，尝试安装 chromium...${PLAIN}"
+        apt install -y chromium || echo -e "${RED}警告: 浏览器安装失败，请手动安装${PLAIN}"
+    fi
+fi
 
 # 5. 【项目一】下载并安装 Netcatty SSH 客户端
 echo -e "${BLUE}[5/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
@@ -249,8 +256,9 @@ mkdir -p /root/桌面 /root/Desktop /etc/skel/桌面 /etc/skel/Desktop
 
 copy_desktop_icon() {
     local pattern=$1
-    local found_file=$(find /usr/share/applications/ -maxdepth 1 -iname "*${pattern}*.desktop" | head -n 1)
-    if [ ! -z "$found_file" ] && [ -f "$found_file" ]; then
+    local found_file
+    found_file=$(find /usr/share/applications/ -maxdepth 1 -iname "*${pattern}*.desktop" -print -quit)
+    if [ -n "$found_file" ] && [ -f "$found_file" ]; then
         cp "$found_file" /root/桌面/ && cp "$found_file" /etc/skel/桌面/
     fi
 }
@@ -285,7 +293,7 @@ if [ -n "$NC_EXEC_PATH" ]; then
                 # 如果还没有 --no-sandbox，则添加
                 if ! grep -q "\-\-no-sandbox" "$DESKTOP_FILE"; then
                     # 使用 perl 进行更精确的替换，保留原始大小写
-                    perl -i -pe 's/^(Exec=.*)$/$1 --no-sandbox/i if /netcatty/i' "$DESKTOP_FILE"
+                    perl -i -pe 's/^(Exec=.*)$/$1 --no-sandbox/ if /netcatty/i' "$DESKTOP_FILE"
                     echo "已为 $DESKTOP_FILE 添加 --no-sandbox 参数"
                 fi
             fi
