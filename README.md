@@ -26,13 +26,16 @@
 - **LXDE 纯净桌面**：无 LightDM 显示管理器，通过 XRDP 直接启动 LXDE 会话
 - **全中文支持**：自动配置 `zh_CN.UTF-8` 本地化，安装文泉驿正黑中文字体
 - **Fcitx5 拼音输入法**：开箱即用的中文输入支持
-- **超轻量浏览器**：优先安装 Midori，不可用时自动回退到 Epiphany
+- **Firefox ESR 浏览器**：稳定可靠的长期支持版本浏览器
+- **LXTerminal**：轻量级终端模拟器
 
 ### 远程桌面
 - **XRDP 服务**：开箱即用的 RDP 远程桌面，连接端口 `3389`
 - **通用调优**：启用动态压缩流缓存、降低加密级别减少延迟、会话超时自动回收
 
 ### 预装工具
+- **Firefox ESR**：稳定可靠的长期支持版本浏览器
+- **LXTerminal**：轻量级终端模拟器
 - **Netcatty**：现代化 SSH 客户端（Electron 架构），已修复 Root 下沙盒闪退问题
 - **OxideTerm**：轻量级 SSH 终端工具
 - **Leafpad**：极简文本编辑器
@@ -74,17 +77,17 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/qqgtr/l
 
 | 步骤 | 说明 |
 |------|------|
-| 1/11 | 更新系统源并安装基础依赖（curl、wget、vim、中文字体、压缩工具等） |
-| 2/11 | 配置系统中文本地化（zh_CN.UTF-8） |
-| 3/11 | 安装 LXDE 桌面核心 + XRDP + Fcitx5 拼音输入法 |
-| 4/11 | 根据上传带宽智能调优 XRDP 色深与压缩策略 |
-| 5/11 | 安装极简浏览器（Midori / Epiphany） |
-| 6/11 | 通过 GitHub 代理下载并安装 Netcatty SSH 客户端 |
-| 7/11 | 通过 GitHub 代理下载并安装 OxideTerm SSH 客户端 |
-| 8/11 | 自动生成桌面快捷方式（浏览器、编辑器、解压工具、SSH 工具） |
-| 9/11 | 配置 PCManFM 文件管理器右键解压菜单 |
-| 10/11 | 基于下载带宽智能注入内核 TCP 调优参数 |
-| 11/11 | 清理系统缓存与冗余包 |
+| 1/11 | 更新系统源并安装基础依赖（curl、wget、vim、压缩工具等） |
+| 2/11 | 安装 LXDE 桌面核心 + XRDP + Fcitx5 拼音输入法 + LXTerminal |
+| 3/11 | 根据上传带宽智能调优 XRDP 色深与压缩策略 |
+| 4/11 | 安装 Firefox ESR 浏览器 |
+| 5/11 | 通过 GitHub 代理下载并安装 Netcatty SSH 客户端 |
+| 6/11 | 通过 GitHub 代理下载并安装 OxideTerm SSH 客户端 |
+| 7/11 | 自动生成桌面快捷方式（浏览器、编辑器、解压工具、SSH 工具） |
+| 8/11 | 配置 PCManFM 文件管理器右键解压菜单 |
+| 9/11 | 基于下载带宽智能注入内核 TCP 调优参数 |
+| 10/11 | 清理系统缓存与冗余包，卸载 XTerm/UXTerm |
+| 11/11 | 安装中文依赖并配置系统中文本地化（zh_CN.UTF-8） |
 
 ## 智能调优逻辑
 
