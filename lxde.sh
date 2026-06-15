@@ -56,8 +56,20 @@ echo -e "${BLUE}[网络参数交互采集]${PLAIN}"
 read -p "1. 请输入当前机器的 [外网上传带宽] (单位 Mbps, 纯数字, 默认 5): " NET_UP
 NET_UP=${NET_UP:-5}
 
+# 验证上传带宽是否为数字
+if ! [[ "$NET_UP" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}错误: 上传带宽必须是纯数字，已使用默认值 5 Mbps${PLAIN}"
+    NET_UP=5
+fi
+
 read -p "2. 请输入当前机器的 [外网下载带宽] (单位 Mbps, 纯数字, 默认 200): " NET_DOWN
 NET_DOWN=${NET_DOWN:-200}
+
+# 验证下载带宽是否为数字
+if ! [[ "$NET_DOWN" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}错误: 下载带宽必须是纯数字，已使用默认值 200 Mbps${PLAIN}"
+    NET_DOWN=200
+fi
 
 echo -e "\n${GREEN}网络配置已锁定 -> 上传: ${NET_UP}Mbps / 下载: ${NET_DOWN}Mbps。开始执行部署...${PLAIN}\n"
 
@@ -147,11 +159,12 @@ fi
 
 # 6. 【项目一】下载并安装 Netcatty SSH 客户端
 echo -e "${BLUE}[6/11] 正在通过代理加速节点获取并安装 Netcatty (binaricat/Netcatty)...${PLAIN}"
-NC_RAW_URL=$(curl -s "${GH_PROXY}https://github.com" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+NC_API_URL="${GH_PROXY}/https://api.github.com/repos/binaricat/Netcatty/releases/latest"
+NC_RAW_URL=$(curl -s "$NC_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$NC_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    NC_URL="${GH_PROXY}https://github.com"
+    NC_URL="https://github.com/binaricat/Netcatty/releases/latest/download/netcatty_amd64.deb"
 else
     NC_URL="${GH_PROXY}${NC_RAW_URL}"
 fi
@@ -166,11 +179,12 @@ fi
 
 # 7. 【项目二】下载并安装 OxideTerm SSH 客户端
 echo -e "${BLUE}[7/11] 正在通过代理加速节点获取并安装 OxideTerm (AnalyseDeCircuit/oxideterm)...${PLAIN}"
-OX_RAW_URL=$(curl -s "${GH_PROXY}https://github.com" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
+OX_API_URL="${GH_PROXY}/https://api.github.com/repos/AnalyseDeCircuit/oxideterm/releases/latest"
+OX_RAW_URL=$(curl -s "$OX_API_URL" | grep -E "browser_download_url.*amd64\.deb" | head -n 1 | cut -d '"' -f 4)
 
 if [ -z "$OX_RAW_URL" ]; then
     echo -e "${YELLOW}API 解析超时，切换硬编码安全版本下载...${PLAIN}"
-    OX_URL="${GH_PROXY}https://github.com"
+    OX_URL="https://github.com/AnalyseDeCircuit/oxideterm/releases/latest/download/oxideterm_amd64.deb"
 else
     OX_URL="${GH_PROXY}${OX_RAW_URL}"
 fi
@@ -239,7 +253,11 @@ cp /root/.local/share/file-manager/actions/xarchiver-extract.desktop /etc/skel/.
 
 # 10. 深度性能调优：高并发内核网卡与智能网络接收窗口计算
 echo -e "${BLUE}[10/11] 正在基于下载带宽 (${NET_DOWN}Mbps) 注入动态内核 TCP 调优限制...${PLAIN}"
-cat <<EOF >> /etc/security/limits.conf
+
+# 检查是否已存在配置标记，避免重复追加
+if ! grep -q "# LXDE-DESKTOP-TUNING" /etc/security/limits.conf 2>/dev/null; then
+    cat <<EOF >> /etc/security/limits.conf
+# LXDE-DESKTOP-TUNING
 *               soft    nofile          65535
 *               hard    nofile          65535
 *               soft    nproc           4096
@@ -247,8 +265,11 @@ cat <<EOF >> /etc/security/limits.conf
 *               soft    memlock         unlimited
 *               hard    memlock         unlimited
 EOF
+fi
 
-cat <<EOF >> /etc/sysctl.conf
+if ! grep -q "# LXDE-DESKTOP-TUNING" /etc/sysctl.conf 2>/dev/null; then
+    cat <<EOF >> /etc/sysctl.conf
+# LXDE-DESKTOP-TUNING
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_tw_reuse = 1
 net.ipv4.tcp_fin_timeout = 30
@@ -256,15 +277,19 @@ net.ipv4.tcp_max_syn_backlog = 8192
 net.ipv4.tcp_max_tw_buckets = 5000
 fs.file-max = 65535
 EOF
+fi
 
 # 动态扩展高带宽接收窗口（如果下载带宽大于 100Mbps 触发）
 if [ "$NET_DOWN" -gt 100 ]; then
-    cat <<EOF >> /etc/sysctl.conf
+    if ! grep -q "# LXDE-DESKTOP-HIGH-BW" /etc/sysctl.conf 2>/dev/null; then
+        cat <<EOF >> /etc/sysctl.conf
+# LXDE-DESKTOP-HIGH-BW
 net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
 net.ipv4.tcp_rmem = 4096 87380 16777216
 net.ipv4.tcp_wmem = 4096 65536 16777216
 EOF
+    fi
 fi
 sysctl -p 2>/dev/null
 
@@ -274,7 +299,7 @@ apt autoremove -y && apt clean
 
 # 部署完成提示
 echo -e "\n${GREEN}====================================================${PLAIN}"
-echo -e "${GREEN} 恭喜！多系统兼容（Debian 11+ / Ubuntu 22.04+）最终版部署成功！${PLAIN}"
+echo -e "${GREEN} 恭喜！多系统兼容（Debian 11+ / Ubuntu 22.04+）部署成功！${PLAIN}"
 echo -e "${GREEN}====================================================${PLAIN}"
 echo -e "${YELLOW}当前环境版本及网络调优状态：${PLAIN}"
 echo -e "▶ 宿主系统版本: ${GREEN}${OS_NAME} ${VERSION_ID}${PLAIN}"
