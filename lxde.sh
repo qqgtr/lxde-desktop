@@ -125,37 +125,35 @@ chmod +x /etc/skel/.xsession /root/.xsession
 # 3. 优化 XRDP 会话管理与智能图像压缩调优
 echo -e "${BLUE}[3/11] 正在根据用户输入的上传带宽 (${NET_UP}Mbps) 调优图像压缩算法...${PLAIN}"
 if [ -f /etc/xrdp/xrdp.ini ]; then
-    # 使用 awk 精确修改 [globals] section 下的配置，不影响其他 section
-    awk -v port="$RDP_PORT" -v bpp="$NET_UP" '
-        BEGIN { in_globals=0 }
-        /^\[globals\]/ { in_globals=1 }
-        /^\[/ && !/^\[globals\]/ { in_globals=0 }
-        
-        # 在 [globals] section 内修改配置
-        in_globals && /^port=/ { $0="port="port; port_found=1 }
-        in_globals && /^max_bpp=/ { 
-            if (bpp+0 <= 10) $0="max_bpp=16"; else $0="max_bpp=32"
-            bpp_found=1
-        }
-        in_globals && /^xrdp.bpp=/ { 
-            if (bpp+0 <= 10) $0="xrdp.bpp=16"; else $0="xrdp.bpp=32"
-            xrdp_bpp_found=1
-        }
-        
-        { print }
-        
-        END {
-            if (!port_found) print "port="port
-            if (!bpp_found) {
-                if (bpp+0 <= 10) print "max_bpp=16"; else print "max_bpp=32"
-            }
-            if (!xrdp_bpp_found) {
-                if (bpp+0 <= 10) print "xrdp.bpp=16"; else print "xrdp.bpp=32"
-            }
-        }
-    ' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini.tmp && mv /tmp/xrdp.ini.tmp /etc/xrdp/xrdp.ini
+    # 智能干预图像色深（10M为低带宽分水岭）
+    if [ "$NET_UP" -le 10 ]; then
+        echo -e "${YELLOW}检测为低上传带宽限制，强制启用 16-bit 深度画面压缩流...${PLAIN}"
+        BPP_VAL=16
+    else
+        echo -e "${GREEN}上传带宽充裕，采用 32-bit 高清图形流渲染...${PLAIN}"
+        BPP_VAL=32
+    fi
     
-    # 修改其他全局配置（这些配置只在 [globals] 下出现，可以安全全局替换）
+    # 使用 awk 精确修改 [globals] section 下的 port 和 bpp 配置，不影响其他 section
+    awk -v port="$RDP_PORT" -v bpp="$BPP_VAL" '
+        BEGIN { in_globals=0; port_found=0 }
+        /^\[globals\]/ { in_globals=1; print; next }
+        /^\[/ && in_globals { in_globals=0 }
+        in_globals && /^port=/ { print "port="port; port_found=1; next }
+        in_globals && /^max_bpp=/ { print "max_bpp="bpp; next }
+        in_globals && /^xrdp\.bpp=/ { print "xrdp.bpp="bpp; next }
+        { print }
+        END {
+            # 如果 [globals] 中没有 port=，在文件末尾添加（XRDP 会读取）
+            if (!port_found) print "port="port
+        }
+    ' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini.tmp
+    
+    # 使用 cp 保留原文件权限和所有权
+    cp /tmp/xrdp.ini.tmp /etc/xrdp/xrdp.ini
+    rm -f /tmp/xrdp.ini.tmp
+    
+    # 修改其他全局配置
     sed -i 's/MaxSessions=.*/MaxSessions=10/g' /etc/xrdp/xrdp.ini
     sed -i 's/use_compression=.*/use_compression=yes/g' /etc/xrdp/xrdp.ini
     sed -i 's/crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
