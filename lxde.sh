@@ -258,8 +258,8 @@ done
 
 # 如果找到可执行文件，则修复桌面文件
 if [ -n "$NC_EXEC_PATH" ]; then
-    # 使用 -iname 大小写不敏感匹配，覆盖所有可能的桌面文件位置
-    for DESKTOP_FILE in $(find /usr/share/applications/ /root/桌面/ /etc/skel/桌面/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null); do
+    # 使用 find + while read 正确处理带空格的路径
+    find /usr/share/applications/ /root/桌面/ /etc/skel/桌面/ -maxdepth 1 -iname "*netcatty*.desktop" 2>/dev/null | while read -r DESKTOP_FILE; do
         if [ -f "$DESKTOP_FILE" ]; then
             # 备份原文件
             cp "$DESKTOP_FILE" "$DESKTOP_FILE.bak" 2>/dev/null
@@ -359,8 +359,8 @@ sysctl -p 2>/dev/null
 # 10. 系统瘦身与垃圾清理
 echo -e "${BLUE}[10/11] 清理缓存文件释放系统体积...${PLAIN}"
 # 卸载 XTerm（LXDE 附带的旧式终端，已有 lxterminal 替代）
-# 注：uxterm 是 xterm 包的一部分，不是独立包
-apt purge -y xterm 2>/dev/null
+# 注：uxterm 是 xterm 包提供的脚本，不是独立包
+apt purge -y xterm 2>/dev/null || true
 apt autoremove -y && apt clean
 
 # 11. 配置全中文环境（放在最后执行，确保所有组件安装完成后再设置中文）
